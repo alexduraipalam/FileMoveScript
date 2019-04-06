@@ -1,0 +1,61 @@
+#!/usr/bin/expect -f
+###################################################################################
+#
+# Description:This script will be used to automate user interactive sftp session with password used in source sftp section of filemovement
+# Created by :Kathiravan Udayakumar (Cognizant) - v43670
+# Date:04-26-2010
+#
+###################################################################################
+
+set temp 0 ;
+set force_conservative 0  ;# set to 1 to force conservative mode even if
+                          ;# script wasn't run conservatively originally
+if {$force_conservative} {
+        set send_slow {1 .1}
+ proc send {ignore arg} {
+                sleep .1
+                exp_send -s -- $arg
+        }
+}
+proc do_exit {msg} {
+     exit 1
+}
+
+spawn $env(SHELL)
+
+set user [lindex $argv 0]
+set host [lindex $argv 1]
+set pass [lindex $argv 2]
+set srcfilename [lindex $argv 3]
+set tempinputdir [lindex $argv 4]
+set srclocation [lindex $argv 5]
+set logfilename [lindex $argv 6]
+set cmdtype [lindex $argv 7]
+set portcmd [lindex $argv 8]
+set exptimeout [lindex $argv 9]
+
+send  "sftp $portcmd $user@$host >$logfilename 2>&1\r"
+expect -re {Password: $}
+send  "$pass\r"
+ expect {
+        -re {$} {
+              sleep 1
+              send "cd  $srclocation\r"
+              sleep 1
+            }
+            timeout {do_exit "timed outs waiting for prompt"}
+            default {do_exit "something else happened"}
+
+        }
+
+expect -re {$}
+if {$cmdtype == 1} {
+send "get $srcfilename $tempinputdir\r"
+set timeout $exptimeout
+}
+if {$cmdtype == 2} {
+send "rm $srcfilename\r"
+}
+expect -re {$}
+send "quit\r"
+expect eof
